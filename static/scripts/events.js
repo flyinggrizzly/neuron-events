@@ -81,7 +81,7 @@ var todaysEvents = events => {
 * Returns an Array of zettel objects
 */
 var annualEvents = events => {
-  var dateRegexp = new RegExp(`event-yyyy-${ month }-${ date }`)
+  var dateRegexp = new RegExp(`event-yyyy-(${ month }|mm)-(${ date }|dd)`)
 
   return events.filter(event => dateRegexp.test(event.zettelID));
 };
@@ -94,7 +94,7 @@ var annualEvents = events => {
 * Returns an Array of zettel objects
 */
 var monthlyEvents = events => {
-  var dateRegexp = new RegExp(`event-${ year }-mm-${ date }`)
+  var dateRegexp = new RegExp(`event-(yyyy|${ year })-mm-(${ date }|dd)`)
 
   return events.filter(event => dateRegexp.test(event.zettelID));
 };
@@ -107,7 +107,7 @@ var monthlyEvents = events => {
 * Returns an Array of zettel objects
 */
 var dailyEvents = events => {
-  var dateRegexp = new RegExp(`event-${ year }-${ month }-dd`)
+  var dateRegexp = new RegExp(`event-(${ year }|yyyy)-(${ month }|mm)-dd`)
 
   return events.filter(event => dateRegexp.test(event.zettelID));
 };
@@ -134,7 +134,7 @@ var buildEventsHTML = events => {
   if (todays.length > 0) {
     html = [
       ...html,
-      "<h2>Today's events<h2>",
+      "<h2>Today's events</h2>",
       "<ul id='todays-events'>",
     ]
     todays.forEach(e => html.push(buildEventLinkHtml(e)));
@@ -220,6 +220,5 @@ document.addEventListener('keyup', e => {
   if (e.key === 'i')
     document.location.href = '/';
   else if (e.key === 'e')
-    document.location.href = `${eventsRootId}.html;
+    document.location.href = `${eventsRootId}.html`;
 });
-
