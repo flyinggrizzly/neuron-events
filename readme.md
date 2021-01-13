@@ -1,5 +1,7 @@
 # Using Neuron to track today's events
 
+![Example](./neuron-events-widget.png)
+
 I use Neuron, with the [dirtree](https://neuron.zettel.page/dirtree.html)
 plugin, to keep track of events and help me remember important things, **when
 using the [web interface](https://neuron.zettel.page/web.html).
@@ -48,11 +50,6 @@ visibility of things this could be helpful).
 
 There aren't day-of-the-week repetitions at this point. I'd like to add them
 when I figure out a good way to do it.
-
-If you are using the month or date wildcards, they need to be preceded by the
-year (and month) wildcards--this means you can't do a repetition like "every
-year, in January, every day" (for like, dry January), though I'm looking to add
-this too.
 
 ## Vim functions
 
