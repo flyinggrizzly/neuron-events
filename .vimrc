@@ -12,13 +12,6 @@ function! g:NewZettelEventTab(name, date, ...)
   call ZettelEvent('tabedit', a:name, a:date, a:000)
 endfunction
 
-" Creating a new zettel event
-"
-" Requires a `command` (`e`, `tabe`, etc) param
-" Requires a `name` param
-" Requires a `date` param, in ISO8601 format (including Time), or ISO8601 with the year, month or day element
-"   replaced with wildcards (repeating annually: `yyyy-MM-DD`, repeating monthly: `yyyy-mm-DD`, repeating daily: `yyyy-mm-dd`)
-" Accepts a slopped List of tags
 function! g:ZettelEvent(command, name, date, tags)
   let l:id_elements = [
   \ 'events/event',
@@ -46,53 +39,182 @@ function! g:ZettelEvent(command, name, date, tags)
   call append(len(l:front_matter), l:body)
 endfunction
 
-" Formats the date param passed to `g:ZettelEvent` into an English-friendly format
-" Handles repeating dates
 function! g:FormatZettelEventDate(date_time)
   let l:full_date_regexp = '\d\d\d\d-\d\d-\d\d'
   let l:annual_date_regexp = 'yyyy-\d\d-\d\d'
   let l:monthly_date_regexp = 'yyyy-mm-\d\d'
+  let l:monthly_for_a_year_regexp = '\d\d\d\d-mm-\d\d'
   let l:daily_date_regexp = 'yyyy-mm-dd'
+  let l:daily_for_a_year_regexp = '\d\d\d\d-mm-dd'
+  let l:daily_for_a_month_and_year_regexp = '\d\d\d\d-\d\d-dd'
+  let l:daily_for_a_month_regexp = 'yyyy-\d\d-dd'
 
-  let l:date_segments = split(a:date_time, 'T')
-  let l:has_time = len(l:date_segments) > 1
-  let l:date_segment = l:date_segments[0]
-  let l:time = l:date_segments[1]
+  if match(a:date_time, l:full_date_regexp) > -1
+    return a:date_time
+  elseif match(a:date_time, l:annual_date_regexp) > -1
+    return AnnualDateFormat(a:date_time)
+  elseif match(a:date_time, l:monthly_date_regexp) > -1
+    return MonthlyDateFormat(a:date_time)
+  elseif match(a:date_time, l:monthly_for_a_year_regexp) > -1
+    return MonthlyForAYearFormat(a:date_time)
+  elseif match(a:date_time, l:daily_date_regexp)
+    return DailyFormat(a:date_time)
+  elseif match(a:date_time, l:daily_for_a_year_regexp) > -1
+    return DailyForAYearFormat(a:date_time)
+  elseif match(a:date_time, l:daily_for_a_month_and_year_regexp) > -1
+    return DailyForAMonthAndYearFormat(a:date_time)
+  elseif match(a:date_time, l:daily_for_a_month_regexp) > -1
+    return DailyForAMonthFormat(a:date_time)
+  endif
+endfunction
 
-  let l:date_components = split(l:date_segment, '-')
-  let l:year = l:date_components[0]
+function! g:AnnualDateFormat(date_time)
+  let l:date_and_time = split(a:date_time, 'T')
+  let l:date_components = split(l:date_and_time[0], '-')
   let l:month = l:date_components[1]
   let l:raw_date = l:date_components[2]
   let l:date = substitute(l:raw_date, '^0', '', '')
 
-  let l:components = []
+  if IncludesTime(a:date_time)
+    let l:time = l:date_and_time[1]
 
-  if match(a:date_time, l:full_date_regexp) > -1
-    return a:date_time.':'
-  elseif match(a:date_time, l:annual_date_regexp) > -1
-    call add(l:components, 'Anually on '.l:month.'/'.l:date.' at '.l:time)
-  elseif match(a:date_time, l:monthly_date_regexp) > -1
-    if l:date ==? '1'
-      call add(l:components, '1st of every month')
-    elseif l:date ==? '2'
-      call add(l:components, '2nd of every month')
-    elseif l:date ==? '3'
-      call add(l:components, '3rd of every month')
-    else
-      call add(l:components, l:date.'th of every month')
-    endif
-  elseif match(a:date_time, l:daily_date_regexp)
-    call add(l:components, 'Every day')
-  endif
-
-  if l:has_time
-    call add(l:components, ' at '.l:time.':')
+    return "Annually on ".l:month."/".l:date." at ".l:time
   else
-    call add(l:components, ':')
+    return "Annually on ".l:month."/".l:date
   endif
-
-  return join(l:components, ' ')
 endfunction
+
+function! g:DeclineTwoDigitCounter(number)
+  let l:trailing_digit = a:number[-1]
+
+  if l:trailing_digit ==? '1'
+    return a:number.'st'
+  elseif l:trailing_digit ==? '2'
+    return a:number.'nd'
+  elseif l:trailing_digit ==? '3'
+    return a:number.'rd'
+  else
+    return a:number.'th'
+  endif
+endfunction
+
+function! g:MonthlyDateFormat(date_time)
+  let l:date_and_time = split(a:date_time, 'T')
+  let l:date_components = split(l:date_and_time[0], '-')
+  let l:raw_date = l:date_components[2]
+  let l:date = substitute(l:raw_date, '^0', '', '')
+
+  if IncludesTime(a:date_time)
+    let l:time = l:date_and_time[1]
+
+    return DeclineTwoDigitCounter(l:date).' at '.l:time
+  else
+    return DeclineTwoDigitCounter(l:date)
+  endif
+endfunction
+
+" Format for YYYY-mm-DD
+function! g:MonthlyForAYearFormat(date_time)
+  let l:date_and_time = split(a:date_time, 'T')
+  let l:date_components = split(l:date_and_time[0], '-')
+  let l:year = l:date_components[0]
+  let l:raw_date = l:date_components[2]
+  let l:date = substitute(l:raw_date, '^0', '', '')
+
+  if IncludesTime(a:date_time)
+    let l:time = l:date_and_time[1]
+
+    return DeclineTwoDigitCounter(l:date).' of every month (in '.l:year.') at '.l:time
+  else
+    return DeclineTwoDigitCounter(l:date).' of every month (in '.l:year.')'
+  endif
+endfunction
+
+function! DailyFormat(date_time)
+  let l:date_and_time = split(a:date_time, 'T')
+
+  if IncludesTime(a:date_time)
+    let l:time = l:date_and_time[1]
+
+    return 'Every day at '.l:time
+  else
+    return 'Every day'
+  endif
+endfunction
+
+function! DailyForAYearFormat(date_time)
+  let l:date_and_time = split(a:date_time, 'T')
+  let l:date_components = split(l:date_and_time[0], '-')
+  let l:year = l:date_components[0]
+
+  if IncludesTime(a:date_time)
+    let l:time = l:date_and_time[1]
+
+    return 'Every day in '.l:year.' at '.l:time
+  else
+    return 'Every day in '.l:year
+  endif
+endfunction
+
+function! DailyForAMonthAndYearFormat(date_time)
+  let l:date_and_time = split(a:date_time, 'T')
+  let l:date_components = split(l:date_and_time[0], '-')
+  let l:year = l:date_components[0]
+  let l:month = l:date_components[1]
+
+  if IncludesTime(a:date_time)
+    let l:time = l:date_and_time[1]
+
+    return 'Every day in '.LookupMonth(l:month).' '.l:year.' at '.l:time
+  else
+    return 'Every day in '.LookupMonth(l:month).' '.l:year
+  endif
+endfunction
+
+function! g:DailyForAMonthFormat(date_time)
+  let l:date_and_time = split(a:date_time, 'T')
+  let l:date_components = split(l:date_and_time[0], '-')
+  let l:month = l:date_components[1]
+
+  if IncludesTime(a:date_time)
+    let l:time = l:date_and_time[1]
+
+    return 'Every day in '.LookupMonth(l:month).' at '.l:time
+  else
+    return 'Every day in '.LookupMonth(l:month)
+  endif
+endfunction
+
+function! g:LookupMonth(number)
+  let l:simple_number = substitute('a:number', '^0', '', '')
+
+  if l:simple_number ==? '1'
+    return 'January'
+  elseif l:simple_number ==? '2'
+    return 'February'
+  elseif l:simple_number ==? '3'
+    return 'March'
+  elseif l:simple_number ==? '4'
+    return 'April'
+  elseif l:simple_number ==? '5'
+    return 'May'
+  elseif l:simple_number ==? '6'
+    return 'June'
+  elseif l:simple_number ==? '7'
+    return 'July'
+  elseif l:simple_number ==? '8'
+    return 'August'
+  elseif l:simple_number ==? '9'
+    return 'September'
+  elseif l:simple_number ==? '10'
+    return 'October'
+  elseif l:simple_number ==? '11'
+    return 'November'
+  elseif l:simple_number ==? '12'
+    return 'December'
+  end
+endfunction
+
 
 " Shamelessly stolen from christoomey/vim-titlecase
 function! g:SmartCapitalize(string)
@@ -121,6 +243,32 @@ function! g:TitleCase(string)
   endfor
 
   return join(l:capitalized_parts, ' ')
+endfunction
+
+function! g:BuildFrontmatter(tags, include_date)
+  let l:tags = a:tags
+
+  let l:front_matter = [
+    \ '---',
+  \]
+
+  if a:include_date
+    call add(l:front_matter, 'date: '.strftime("%Y-%m-%dT%H:%M"))
+  endif
+
+  if (len(l:tags) > 0)
+    call add(l:front_matter, 'tags:')
+
+    for tag in l:tags
+      let l:tag_line = '  - ' . tag
+
+      call add(l:front_matter, l:tag_line)
+    endfor
+  endif
+
+  call add(l:front_matter, '---')
+
+  return l:front_matter
 endfunction
 
 function! g:BuildFrontmatter(tags, include_date)
